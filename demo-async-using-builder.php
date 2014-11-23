@@ -8,10 +8,8 @@ use GuzzleHttp\Pool;
 use paslandau\GuzzleRotatingProxySubscriber\Builder\Build;
 use paslandau\GuzzleRotatingProxySubscriber\Events\WaitingEvent;
 use paslandau\GuzzleRotatingProxySubscriber\Exceptions\NoProxiesLeftException;
-use paslandau\GuzzleRotatingProxySubscriber\Proxy\RotatingProxy;
 use paslandau\GuzzleRotatingProxySubscriber\ProxyRotator;
 use paslandau\GuzzleRotatingProxySubscriber\RotatingProxySubscriber;
-use paslandau\GuzzleRotatingProxySubscriber\Time\RandomTimeInterval;
 
 require_once __DIR__ . '/demo-bootstrap.php';
 
@@ -30,7 +28,7 @@ $rotator = Build::rotator()
     ->eachProxyNeedsToWaitSecondsBetweenRequests(1, 3)
     ->build();
 
-$getWaitingTime = function (WaitingEvent $e){
+$getWaitingTime = function (WaitingEvent $e) {
     echo "Need to wait " . $e->getProxy()->getWaitingTime() . "s\n";
 };
 $rotator->getEmitter()->on(ProxyRotator::EVENT_ON_WAIT, $getWaitingTime);
