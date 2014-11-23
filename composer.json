@@ -1,0 +1,24 @@
+{
+    "name": "paslandau/GuzzleRotatingProxySubscriber",
+    "description" : "Guzzle Plugin resp. Guzzle Subscriber to automatically pick a proxy from a predefined set of proxies for every request to avoid IP based blocking.",
+    "authors": [
+        {
+            "name": "Pascal Landau",
+            "email": "kontakt@myseosolution.de",
+            "homepage": "http://www.myseosolution.de",
+            "role": "Developer"
+        }
+    ],
+	"autoload": {
+	    "psr-4": {
+	        "paslandau\\GuzzleRotatingProxySubscriber\\": "src/"
+	    }
+	},
+    "require" : {
+        "php": "~5.5",
+        "guzzlehttp/guzzle": "~5.0.3"
+    },
+    "require-dev" : {
+        "phpunit/phpunit": "~3"
+    }
+}
