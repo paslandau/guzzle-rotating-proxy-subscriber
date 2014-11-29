@@ -127,7 +127,7 @@ class ProxyRotator implements ProxyRotatorInterface
      * @return bool - returns false if no proxy could be used (no working proxies left but $this->useOwnIp is true), otherwise true.
      */
     public function setupRequest(RequestInterface $request){
-        $proxy = $this->getWorkingProxy();
+        $proxy = $this->getWorkingProxy($request);
         $this->requestId2ProxyMap[] = $proxy;
         $keys = array_keys($this->requestId2ProxyMap);
         $requestId = end($keys); // get newly inserted key
@@ -164,7 +164,8 @@ class ProxyRotator implements ProxyRotatorInterface
 //            throw new RotatingProxySubscriberException("Config key '".self::$REQUEST_CONFIG_KEY."' not found in request config - this shouldn't happen...");
         }
         if(!array_key_exists($requestId, $this->requestId2ProxyMap)){
-            throw new RotatingProxySubscriberException("Request with id '{$requestId}' not found - it was probably already processed. Make sure not to pass on multiple events for the same request. This might be influenced by the event priority.");
+            $msg = "Request with id '{$requestId}' not found - it was probably already processed. Make sure not to pass on multiple events for the same request. This might be influenced by the event priority.";
+            throw new RotatingProxySubscriberException($msg,$event->getRequest());
         }
         $proxy = $this->requestId2ProxyMap[$requestId];
         unset($this->requestId2ProxyMap[$requestId]);
@@ -177,10 +178,10 @@ class ProxyRotator implements ProxyRotatorInterface
     }
 
     /**
-     * @throws NoProxiesLeftException
+     * @param RequestInterface $request
      * @return RotatingProxyInterface
      */
-    protected function getWorkingProxy(){
+    protected function getWorkingProxy(RequestInterface $request){
         $waitingProxies = [];
         $waitingProxyTimes = [];
         while($this->hasEnoughWorkingProxies()){
@@ -214,7 +215,7 @@ class ProxyRotator implements ProxyRotatorInterface
                 sleep($minimumWaitingTime);
             }
             $this->workingProxies += $waitingProxies;
-            return $this->getWorkingProxy();
+            return $this->getWorkingProxy($request);
         }
 
         if($this->useOwnIp){
@@ -223,7 +224,7 @@ class ProxyRotator implements ProxyRotatorInterface
             return new NullProxy();
         }
         $msg = "No proxies left and usage of own IP is forbidden";
-        throw new NoProxiesLeftException($this,$msg);
+        throw new NoProxiesLeftException($this,$request,$msg);
     }
 
     /**

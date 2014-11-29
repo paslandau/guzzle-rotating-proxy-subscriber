@@ -22,7 +22,7 @@ $url = "http://www.myseosolution.de/scripts/myip.php";
 for ($i = 0; $i < $num; $i++) {
     $request =  $client->createRequest("GET",$url);
     try {
-        $response = $client->send($request); 
+        $response = $client->send($request);
         echo "Success with " . $request->getConfig()->get("proxy") . " on $i. request\n";
     } catch (Exception $e) {
         if ($e->getPrevious() instanceof NoProxiesLeftException) {

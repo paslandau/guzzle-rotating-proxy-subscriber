@@ -1,6 +1,7 @@
 {
     "name": "paslandau/GuzzleRotatingProxySubscriber",
-    "description" : "Guzzle Plugin resp. Guzzle Subscriber to automatically pick a proxy from a predefined set of proxies for every request to avoid IP based blocking.",
+    "license": "MIT",
+    "description" : "Guzzle plugin resp. Guzzle subscriber to automatically pick a proxy from a predefined set of proxies for every request to avoid IP based blocking.",
     "authors": [
         {
             "name": "Pascal Landau",

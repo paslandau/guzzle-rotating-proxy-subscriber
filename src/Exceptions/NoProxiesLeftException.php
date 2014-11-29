@@ -3,6 +3,7 @@
 namespace paslandau\GuzzleRotatingProxySubscriber\Exceptions;
 
 
+use GuzzleHttp\Message\RequestInterface;
 use paslandau\GuzzleRotatingProxySubscriber\ProxyRotatorInterface;
 
 class NoProxiesLeftException extends RotatingProxySubscriberException{
@@ -12,13 +13,16 @@ class NoProxiesLeftException extends RotatingProxySubscriberException{
      */
     private $proxyRotator;
 
-    public function __construct(ProxyRotatorInterface $proxyRotator, $message, $code = null, $previous = null){
+    /**
+     * @param ProxyRotatorInterface $proxyRotator
+     * @param RequestInterface $request
+     * @param string $message
+     * @param null|\Exception $previous
+     */
+    public function __construct(ProxyRotatorInterface $proxyRotator, RequestInterface $request, $message, \Exception $previous = null){
         $this->proxyRotator = $proxyRotator;
 
-        if($code === null){
-            $code = 0;
-        }
-        parent::__construct($message, $code, $previous);
+        parent::__construct($message, $request, null, $previous);
     }
 
     /**
