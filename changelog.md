@@ -1,3 +1,7 @@
+## 0.1.0
+
+ - changed package name from GuzzleRotatingProxySubscriber to guzzle-rotating-proxy-subscriber
+
 ###0.0.2
 
 - fixed changelog

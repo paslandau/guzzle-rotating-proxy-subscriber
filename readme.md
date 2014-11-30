@@ -1,5 +1,5 @@
-#GuzzleRotatingProxySubscriber
-[![Build Status](https://travis-ci.org/paslandau/GuzzleRotatingProxySubscriber.svg?branch=master)](https://travis-ci.org/paslandau/GuzzleRotatingProxySubscriber)
+#guzzle-rotating-proxy-subscriber
+[![Build Status](https://travis-ci.org/paslandau/guzzle-rotating-proxy-subscriber.svg?branch=master)](https://travis-ci.org/paslandau/guzzle-rotating-proxy-subscriber)
 
 Plugin for [Guzzle 5](https://github.com/scripts/guzzle) to automatically choose a random element from a set of proxies on each request.
 
@@ -54,7 +54,7 @@ See `demo*.php` files.
 
 ##Installation
 
-The recommended way to install GuzzleRotatingProxySubscriber is through [Composer](http://getcomposer.org/).
+The recommended way to install guzzle-rotating-proxy-subscriber is through [Composer](http://getcomposer.org/).
 
     curl -sS https://getcomposer.org/installer | php
 
@@ -64,11 +64,11 @@ Next, update your project's composer.json file to include GuzzleRotatingProxySub
         "repositories": [
             {
                 "type": "git",
-                "url": "https://github.com/paslandau/GuzzleRotatingProxySubscriber.git"
+                "url": "https://github.com/paslandau/guzzle-rotating-proxy-subscriber.git"
             }
         ],
         "require": {
-             "paslandau/GuzzleRotatingProxySubscriber": "~0"
+             "paslandau/guzzle-rotating-proxy-subscriber": "~0"
         }
     }
 
@@ -79,7 +79,7 @@ require 'vendor/autoload.php';
 ```
 
 ##General workflow and customization options
-The GuzzleRotatingProxySubscriber uses the `RotatingProxy` class to represent a single proxy. A set of proxies is managed by a `ProxyRotator`, that takes care
+The guzzle-rotating-proxy-subscriber uses the `RotatingProxy` class to represent a single proxy. A set of proxies is managed by a `ProxyRotator`, that takes care
 of the rotation on every request by hooking into the [before](http://guzzle.readthedocs.org/en/latest/events.html#before) event and changing the 
 ['proxy' request option](http://guzzle.readthedocs.org/en/latest/clients.html#proxy) of a request.
 
