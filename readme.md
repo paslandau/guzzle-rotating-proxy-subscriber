@@ -61,14 +61,10 @@ The recommended way to install guzzle-rotating-proxy-subscriber is through [Comp
 Next, update your project's composer.json file to include GuzzleRotatingProxySubscriber:
 
     {
-        "repositories": [
-            {
-                "type": "git",
-                "url": "https://github.com/paslandau/guzzle-rotating-proxy-subscriber.git"
-            }
-        ],
+        "repositories": [ { "type": "composer", "url": "http://packages.myseosolution.de/"} ],
+        "minimum-stability": "dev",
         "require": {
-             "paslandau/guzzle-rotating-proxy-subscriber": "~0"
+             "paslandau/guzzle-rotating-proxy-subscriber": "dev-master"
         }
     }
 
