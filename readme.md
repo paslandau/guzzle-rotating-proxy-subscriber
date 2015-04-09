@@ -46,7 +46,7 @@ for ($i = 0; $i < $num; $i++) {
 
 ###Examples
 
-See `demo*.php` files.
+See `examples/demo*.php` files.
 
 ##Requirements
 
@@ -362,6 +362,8 @@ There are two options that can be used via the builder interface:
 - `distributeIdentitiesAmongProxies($identities)`
 - `eachProxySwitchesIdentityAfterRequests($min,$max)`
 
+```php
+
 $s = "
 username:password@111.111.111.111:4711
 username:password@112.112.112.112:4711
@@ -389,6 +391,7 @@ $rotator = Build::rotator()
     ->distributeIdentitiesAmongProxies($identities)     // setup each proxy with a subset of $identities - no identity is assigne twice!       
     ->eachProxySwitchesIdentityAfterRequests(3,7)       // switch to another identity after between 3 and 7 requests
     ->build();
+```
 
 ##Frequently searched questions
 

@@ -5,6 +5,8 @@
 
 #dev-master
 
+###0.1.2
+
 - proxy requests are now evaluated with their own event priority (see `RotatingProxySubscriber::PROXY_*` constants) in the 'complete' and 'error' events
 - added `RotatingProxyInterface::GUZZLE_CONFIG_*` constants for proxy evaluation
 - provided property to let redirect-requests be performed by the same proxy, see `ProxyRotator::setReuseProxyOnRedirect()` - this is default behavior now
