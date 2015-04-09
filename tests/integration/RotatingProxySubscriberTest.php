@@ -2,7 +2,6 @@
 use Doctrine\Common\Cache\ArrayCache;
 use GuzzleHttp\Client;
 use GuzzleHttp\Event\AbstractTransferEvent;
-use GuzzleHttp\Event\BeforeEvent;
 use GuzzleHttp\Event\CompleteEvent;
 use GuzzleHttp\Event\EndEvent;
 use GuzzleHttp\Event\ErrorEvent;
@@ -14,7 +13,6 @@ use paslandau\GuzzleApplicationCacheSubscriber\ApplicationCacheSubscriber;
 use paslandau\GuzzleApplicationCacheSubscriber\CacheStorage;
 use paslandau\GuzzleRotatingProxySubscriber\Exceptions\NoProxiesLeftException;
 use paslandau\GuzzleRotatingProxySubscriber\Interval\RandomCounterInterval;
-use paslandau\GuzzleRotatingProxySubscriber\Interval\RandomCounterIntervalInterface;
 use paslandau\GuzzleRotatingProxySubscriber\Proxy\Identity;
 use paslandau\GuzzleRotatingProxySubscriber\Proxy\RotatingIdentityProxy;
 use paslandau\GuzzleRotatingProxySubscriber\Proxy\RotatingProxy;
@@ -27,18 +25,8 @@ use paslandau\GuzzleRotatingProxySubscriber\Interval\TimeProviderInterface;
 
 include_once __DIR__ . "/../RandomAndTimeHelper.php";
 
-class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
-
-    private function getHelper(array $numbers = null, array $times = null, array $randKeys = null){
-        $randomMock = $this->getMock(RandomizerInterface::class);
-        $timeMock = $this->getMock(TimeProviderInterface::class);
-        $h = new RandomAndTimeHelper($numbers, $times, $randKeys, $randomMock,$timeMock);
-        $randomMock->expects($this->any())->method("randNum")->will($this->returnCallback($h->getGetRandomNumberFn()));
-        $randomMock->expects($this->any())->method("randKey")->will($this->returnCallback($h->getGetRandomKeyFn()));
-        $timeMock->expects($this->any())->method("getTime")->will($this->returnCallback($h->getGetRandomTimeFn()));
-
-        return $h;
-    }
+class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase
+{
 
     public function test_integration_ChooseTheRightProxyAtTheRightTime()
     {
@@ -84,8 +72,8 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
         $randKeys = [];
         $responses = [];
         foreach ($responses2Proxy as $key => $val) {
-            $randKeys[$key] = array_search($val[1],$proxies);
-            $responses[$key] = ($val[0])?new Response(200):new Response(403);
+            $randKeys[$key] = array_search($val[1], $proxies);
+            $responses[$key] = ($val[0]) ? new Response(200) : new Response(403);
         }
 
         $h = $this->getHelper(null, null, $randKeys);
@@ -128,7 +116,7 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
 //            "complete" => function (CompleteEvent $ev) use ($sucFn) { $sucFn($ev->getRequest());},
 //            "error" => function (ErrorEvent $ev) use ($errFn) { $errFn($ev->getRequest(),$ev->getException());},
         ];
-        $pool = new Pool($client,$requests,$options);
+        $pool = new Pool($client, $requests, $options);
         $pool->wait();
 
         $this->assertEquals($total_0, $proxy0->getTotalRequests());
@@ -142,8 +130,8 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
     }
 
     /**
- * Test if an exception emitted in the complete event of a client is received in the error event.
- */
+     * Test if an exception emitted in the complete event of a client is received in the error event.
+     */
     public function test_integration_HonorEventOrder()
     {
         $client = new Client();
@@ -161,8 +149,8 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
         $randKeys = [];
         $responses = [];
         foreach ($responses2Proxy as $key => $val) {
-            $randKeys[$key] = array_search($val[1],$proxies);
-            $responses[$key] = ($val[0])?new Response(200):new Response(403);
+            $randKeys[$key] = array_search($val[1], $proxies);
+            $responses[$key] = ($val[0]) ? new Response(200) : new Response(403);
         }
 
         $h = $this->getHelper(null, null, $randKeys);
@@ -190,7 +178,7 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
         /** @var Exception $exceptionReceivedInError */
         $exceptionReceivedInError = null;
         $options = [
-            "complete" => function (CompleteEvent $ev) use (&$exceptionThrownInComplete){
+            "complete" => function (CompleteEvent $ev) use (&$exceptionThrownInComplete) {
                 $exceptionThrownInComplete = new Exception("foo");
                 throw $exceptionThrownInComplete;
             },
@@ -201,15 +189,15 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
 //                "priority" => -1000000
             ]
         ];
-        $pool = new Pool($client,$requests,$options);
+        $pool = new Pool($client, $requests, $options);
         $pool->wait();
-        $this->assertNotNull($exceptionThrownInComplete,"The complete event did not throw an exception");
-        $this->assertNotNull($exceptionReceivedInError,"The error event did not receive an exception");
-        do{
+        $this->assertNotNull($exceptionThrownInComplete, "The complete event did not throw an exception");
+        $this->assertNotNull($exceptionReceivedInError, "The error event did not receive an exception");
+        do {
             $exceptionReceivedInError = $exceptionReceivedInError->getPrevious();
             $identical = $exceptionThrownInComplete === $exceptionReceivedInError;
-        }while ($exceptionReceivedInError !== null && !$identical);
-        $this->assertTrue($identical,"The exception thrown in the complete event is not identical with the exception received in the error event");
+        } while ($exceptionReceivedInError !== null && !$identical);
+        $this->assertTrue($identical, "The exception thrown in the complete event is not identical with the exception received in the error event");
         $this->assertEquals(1, $proxy0->getCurrentTotalFails());
     }
 
@@ -236,8 +224,8 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
         $randKeys = [];
         $responses = [];
         foreach ($responses2Proxy as $key => $val) {
-            $randKeys[$key] = array_search($val[1],$proxies);
-            $responses[$key] = ($val[0])?new Response(200):new Response(403);
+            $randKeys[$key] = array_search($val[1], $proxies);
+            $responses[$key] = ($val[0]) ? new Response(200) : new Response(403);
         }
 
         $h = $this->getHelper(null, null, $randKeys);
@@ -268,13 +256,13 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
 
         $cached = 0;
         $options = [
-            "end" => function(EndEvent $ev) use (&$cached){
-                if($ev->getRequest()->getConfig()->get(ApplicationCacheSubscriber::CACHED_RESPONSE_KEY) === true){
+            "end" => function (EndEvent $ev) use (&$cached) {
+                if ($ev->getRequest()->getConfig()->get(ApplicationCacheSubscriber::CACHED_RESPONSE_KEY) === true) {
                     $cached++;
                 }
             }
         ];
-        $pool = new Pool($client,$requests,$options);
+        $pool = new Pool($client, $requests, $options);
         $pool->wait();
         $this->assertEquals(2, $cached, "Expected 2 requests to be cached but got $cached");
         $this->assertEquals(1, $proxy0->getTotalRequests(), "Expected 1 requests made by the proxy"); // only 1 request will be made with the proxy, the two other ones will be cached
@@ -305,8 +293,8 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
         $randKeys = [];
         $responses = [];
         foreach ($responses2Proxy as $key => $val) {
-            $randKeys[$key] = array_search($val[1],$proxies);
-            $responses[$key] = ($val[0])?new Response(200):new Response(403);
+            $randKeys[$key] = array_search($val[1], $proxies);
+            $responses[$key] = ($val[0]) ? new Response(200) : new Response(403);
         }
 
         $h = $this->getHelper(null, null, $randKeys);
@@ -330,11 +318,11 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
             "error" => [
                 "fn" => function (ErrorEvent $ev) {
                     $ev->retry();
-                 },
+                },
                 "priority" => RotatingProxySubscriber::PROXY_COMPLETE_EVENT - 5
             ] // make sure to call retry AFTER the evaluation
         ];
-        $pool = new Pool($client,$requests,$options);
+        $pool = new Pool($client, $requests, $options);
         $pool->wait();
         $this->assertEquals(3, $proxy0->getCurrentTotalFails());
     }
@@ -346,8 +334,8 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
     {
         $client = new Client();
 
-        $evaluationFn = function(RotatingProxyInterface $proxy,  AbstractTransferEvent $event){
-            if($event instanceof ErrorEvent){
+        $evaluationFn = function (RotatingProxyInterface $proxy, AbstractTransferEvent $event) {
+            if ($event instanceof ErrorEvent) {
                 $proxy->block();
                 return false;
             }
@@ -368,8 +356,8 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
         $randKeys = [];
         $responses = [];
         foreach ($responses2Proxy as $key => $val) {
-            $randKeys[$key] = array_search($val[1],$proxies);
-            $responses[$key] = ($val[0])?new Response(200):new Response(403);
+            $randKeys[$key] = array_search($val[1], $proxies);
+            $responses[$key] = ($val[0]) ? new Response(200) : new Response(403);
         }
 
         $h = $this->getHelper(null, null, $randKeys);
@@ -404,7 +392,7 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
                 }
             }
         ];
-        $pool = new Pool($client,$requests,$options);
+        $pool = new Pool($client, $requests, $options);
         $pool->wait();
         $expected = NoProxiesLeftException::class;
         $this->assertEquals($expected, $exception);
@@ -435,10 +423,10 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
         $randKeys = [];
         $responses = [];
         foreach ($responses2Proxy as $key => $val) {
-            if($val[1] !== null) {
+            if ($val[1] !== null) {
                 $randKeys[$key] = array_search($val[1], $proxies);
             }
-            $responses[$key] = ($val[0])?new Response(200):new Response(301,["Location"=>"http://localhost/"]);
+            $responses[$key] = ($val[0]) ? new Response(200) : new Response(301, ["Location" => "http://localhost/"]);
         }
 
         $h = $this->getHelper(null, null, $randKeys);
@@ -460,7 +448,7 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
         $req1 = $client->createRequest("GET");
         $req2 = $client->createRequest("GET");
         $req3 = $client->createRequest("GET");
-        $requests = [$req1,$req2,$req3]; // making only 3 requests but will receive all 4 responses (verified because $proxy0 will have 1 total request)
+        $requests = [$req1, $req2, $req3]; // making only 3 requests but will receive all 4 responses (verified because $proxy0 will have 1 total request)
 
 //        $options = [
 //            "before" => function(BeforeEvent $ev){
@@ -476,11 +464,11 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
 //                echo "End: Proxy ".$ev->getRequest()->getConfig()->get("proxy")."\n";
 //            },
 //        ];
-        $pool = new Pool($client,$requests);
+        $pool = new Pool($client, $requests);
         $pool->wait();
-        $this->assertEquals(2, $proxy1->getTotalRequests(),"Proxy {$proxy1->getProxyString()} should have 2 total request");
-        $this->assertEquals(0, $proxy1->getCurrentTotalFails(),"Proxy {$proxy1->getProxyString()} should have 0 failed requests");
-        $this->assertEquals(1, $proxy0->getTotalRequests(),"Proxy {$proxy0->getProxyString()} should have 1 total request");
+        $this->assertEquals(2, $proxy1->getTotalRequests(), "Proxy {$proxy1->getProxyString()} should have 2 total request");
+        $this->assertEquals(0, $proxy1->getCurrentTotalFails(), "Proxy {$proxy1->getProxyString()} should have 0 failed requests");
+        $this->assertEquals(1, $proxy0->getTotalRequests(), "Proxy {$proxy0->getProxyString()} should have 1 total request");
     }
 
     public function test_integration_ShouldHonorWaitingTimes()
@@ -524,7 +512,7 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
             30, // request 7, picked at getWaitingTime in sleep-loop (should return 23 - (30 - 10) => 3)
             35, // request 7, picked at hasToWait (should return false)
         ];
-        $h = $this->getHelper($numbers,$times);
+        $h = $this->getHelper($numbers, $times);
         $interval = new RandomTimeInterval(0, 15, $h->getRandomMock(), $h->getTimeMock());
         $proxy0 = new RotatingProxy("0", null, 5, 10, $interval);
 
@@ -541,7 +529,7 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
             33, // request 7, picked at hasToWait (should return true)
             33, // request 7, picked at getWaitingTime (should return 5 - (33 - 29) => 1)
         ];
-        $h = $this->getHelper($numbers,$times);
+        $h = $this->getHelper($numbers, $times);
         $interval = new RandomTimeInterval(0, 15, $h->getRandomMock(), $h->getTimeMock());
         $proxy1 = new RotatingProxy("1", null, 5, 10, $interval);
 
@@ -563,7 +551,7 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
             33, // request 7, picked at hasToWait (should return true)
             33, // request 7, picked at getWaitingTime (should return 25 - (33 - 10) => 2)
         ];
-        $h = $this->getHelper($numbers,$times);
+        $h = $this->getHelper($numbers, $times);
         $interval = new RandomTimeInterval(0, 15, $h->getRandomMock(), $h->getTimeMock());
         $proxy2 = new RotatingProxy("2", null, 5, 10, $interval);
 
@@ -596,8 +584,8 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
         $randKeys = [];
         $responses = [];
         foreach ($responses2Proxy as $key => $val) {
-            $randKeys[] = array_search($val[1],$proxies);
-            if($val[0] !== null) {
+            $randKeys[] = array_search($val[1], $proxies);
+            if ($val[0] !== null) {
                 $responses[] = ($val[0]) ? new Response(200) : new Response(403);
             }
         }
@@ -624,35 +612,39 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
         }
 
 
-        $checkState = function($curProxy) use (&$responses2Proxy){
-            while(count($responses2Proxy) > 0){
+        $checkState = function ($curProxy) use (&$responses2Proxy) {
+            while (count($responses2Proxy) > 0) {
                 $el = array_shift($responses2Proxy);
-                if($el === null){
+                if ($el === null) {
                     break;
                 }
-                if($el[0] !== null) {
+                if ($el[0] !== null) {
                     $this->assertEquals($curProxy, $el[1]->getProxyString());
                     break;
                 }
             };
         };
 
-        $sucFn = function(RequestInterface $request) use ($checkState){
+        $sucFn = function (RequestInterface $request) use ($checkState) {
             $proxy = $request->getConfig()->get("proxy");
             $checkState($proxy);
 //            echo "Success at request ".($request->getConfig()->get("request_id")+1)." using proxy ".$proxy."\n";
         };
-        $errFn = function(RequestInterface $request, Exception $e) use ($checkState){
+        $errFn = function (RequestInterface $request, Exception $e) use ($checkState) {
             $proxy = $request->getConfig()->get("proxy");
             $checkState($proxy);
 //            echo "Error at request ".($request->getConfig()->get("request_id")+1)." using proxy ".$proxy.": ".$e->getMessage()."\n";
         };
 
         $options = [
-            "complete" => function (CompleteEvent $ev) use ($sucFn) { $sucFn($ev->getRequest());},
-            "error" => function (ErrorEvent $ev) use ($errFn) { $errFn($ev->getRequest(),$ev->getException());},
+            "complete" => function (CompleteEvent $ev) use ($sucFn) {
+                $sucFn($ev->getRequest());
+            },
+            "error" => function (ErrorEvent $ev) use ($errFn) {
+                $errFn($ev->getRequest(), $ev->getException());
+            },
         ];
-        $pool = new Pool($client,$requests,$options);
+        $pool = new Pool($client, $requests, $options);
         $pool->wait();
     }
 
@@ -681,17 +673,17 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
         ];
 
         $expectedIdentities = [
-            0,0,1,1
+            0, 0, 1, 1
         ];
         /** @var  RandomizerInterface|PHPUnit_Framework_MockObject_MockObject $randomizer */
         $randomizer = $this->getMock(RandomizerInterface::class);
-        $getKeysFn = function($arr) use (&$identityOrder){
+        $getKeysFn = function ($arr) use (&$identityOrder) {
             return array_shift($identityOrder);
         };
         $randomizer->expects($this->any())->method("randKey")->willReturnCallback($getKeysFn);
 
-        $counter = new RandomCounterInterval(2,2); // will always return 2;
-        $proxy0 = new RotatingIdentityProxy($identities,"0",$randomizer,$counter);
+        $counter = new RandomCounterInterval(2, 2); // will always return 2;
+        $proxy0 = new RotatingIdentityProxy($identities, "0", $randomizer, $counter);
         $proxies = [
             0 => $proxy0,
         ];
@@ -706,8 +698,8 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
         $randKeys = [];
         $responses = [];
         foreach ($responses2Proxy as $key => $val) {
-            $randKeys[$key] = array_search($val[1],$proxies);
-            $responses[$key] = ($val[0])?new Response(200):new Response(403);
+            $randKeys[$key] = array_search($val[1], $proxies);
+            $responses[$key] = ($val[0]) ? new Response(200) : new Response(403);
         }
 
         $h = $this->getHelper(null, null, $randKeys);
@@ -734,14 +726,26 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
         $actualIdentities = [];
         $options = [
             "pool_size" => 1,
-            "end" => function (EndEvent $ev) use(&$actualIdentities) {
+            "end" => function (EndEvent $ev) use (&$actualIdentities) {
                 $actual = $ev->getRequest()->getHeader("user-agent");
                 $actualIdentities[] = $actual;
             },
         ];
-        $pool = new Pool($client,$requests,$options);
+        $pool = new Pool($client, $requests, $options);
         $pool->wait();
-        $this->assertEquals($expectedIdentities,$actualIdentities);
+        $this->assertEquals($expectedIdentities, $actualIdentities);
+    }
+
+    private function getHelper(array $numbers = null, array $times = null, array $randKeys = null)
+    {
+        $randomMock = $this->getMock(RandomizerInterface::class);
+        $timeMock = $this->getMock(TimeProviderInterface::class);
+        $h = new RandomAndTimeHelper($numbers, $times, $randKeys, $randomMock, $timeMock);
+        $randomMock->expects($this->any())->method("randNum")->will($this->returnCallback($h->getGetRandomNumberFn()));
+        $randomMock->expects($this->any())->method("randKey")->will($this->returnCallback($h->getGetRandomKeyFn()));
+        $timeMock->expects($this->any())->method("getTime")->will($this->returnCallback($h->getGetRandomTimeFn()));
+
+        return $h;
     }
 }
  
