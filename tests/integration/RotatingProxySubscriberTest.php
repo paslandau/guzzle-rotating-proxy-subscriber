@@ -1,18 +1,29 @@
 <?php
+use Doctrine\Common\Cache\ArrayCache;
 use GuzzleHttp\Client;
 use GuzzleHttp\Event\AbstractTransferEvent;
+use GuzzleHttp\Event\BeforeEvent;
 use GuzzleHttp\Event\CompleteEvent;
+use GuzzleHttp\Event\EndEvent;
 use GuzzleHttp\Event\ErrorEvent;
 use GuzzleHttp\Message\RequestInterface;
 use GuzzleHttp\Message\Response;
 use GuzzleHttp\Pool;
 use GuzzleHttp\Subscriber\Mock;
+use paslandau\GuzzleApplicationCacheSubscriber\ApplicationCacheSubscriber;
+use paslandau\GuzzleApplicationCacheSubscriber\CacheStorage;
+use paslandau\GuzzleRotatingProxySubscriber\Exceptions\NoProxiesLeftException;
+use paslandau\GuzzleRotatingProxySubscriber\Interval\RandomCounterInterval;
+use paslandau\GuzzleRotatingProxySubscriber\Interval\RandomCounterIntervalInterface;
+use paslandau\GuzzleRotatingProxySubscriber\Proxy\Identity;
+use paslandau\GuzzleRotatingProxySubscriber\Proxy\RotatingIdentityProxy;
 use paslandau\GuzzleRotatingProxySubscriber\Proxy\RotatingProxy;
+use paslandau\GuzzleRotatingProxySubscriber\Proxy\RotatingProxyInterface;
 use paslandau\GuzzleRotatingProxySubscriber\ProxyRotator;
 use paslandau\GuzzleRotatingProxySubscriber\Random\RandomizerInterface;
 use paslandau\GuzzleRotatingProxySubscriber\RotatingProxySubscriber;
-use paslandau\GuzzleRotatingProxySubscriber\Time\RandomTimeInterval;
-use paslandau\GuzzleRotatingProxySubscriber\Time\TimeProviderInterface;
+use paslandau\GuzzleRotatingProxySubscriber\Interval\RandomTimeInterval;
+use paslandau\GuzzleRotatingProxySubscriber\Interval\TimeProviderInterface;
 
 include_once __DIR__ . "/../RandomAndTimeHelper.php";
 
@@ -128,6 +139,348 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
         $this->assertEquals($total_error_1, $proxy1->getCurrentTotalFails());
         $this->assertEquals($consecutive_error_1, $proxy1->getCurrentConsecutiveFails());
         $this->assertEquals($consecutive_error_1 < $max_consecutive_error_1, $proxy1->isUsable());
+    }
+
+    /**
+ * Test if an exception emitted in the complete event of a client is received in the error event.
+ */
+    public function test_integration_HonorEventOrder()
+    {
+        $client = new Client();
+
+        $proxy0 = new RotatingProxy("0", null, 5, 10, null);
+        $proxies = [
+            0 => $proxy0,
+        ];
+
+        $success = true;
+        $fail = false;
+        $responses2Proxy = [
+            [$success, $proxy0],
+        ];
+        $randKeys = [];
+        $responses = [];
+        foreach ($responses2Proxy as $key => $val) {
+            $randKeys[$key] = array_search($val[1],$proxies);
+            $responses[$key] = ($val[0])?new Response(200):new Response(403);
+        }
+
+        $h = $this->getHelper(null, null, $randKeys);
+        $useOwnIp = false;
+
+        $rotator = new ProxyRotator($proxies, $useOwnIp, $h->getRandomMock());
+        $sub = new RotatingProxySubscriber($rotator);
+
+        $mock = new Mock($responses);
+
+        // Add the mock subscriber to the client.
+        $client->getEmitter()->attach($mock);
+        $client->getEmitter()->attach($sub);
+
+        // build requests - we need to do this _after_ the $mock hast been attached to the client,
+        // otherwise a real request is sent.
+        $requests = [];
+        foreach ($responses as $key => $val) {
+            $req = $client->createRequest("GET");
+            $req->getConfig()->set("request_id", $key);
+            $requests[$key] = $req;
+        }
+
+        $exceptionThrownInComplete = null;
+        /** @var Exception $exceptionReceivedInError */
+        $exceptionReceivedInError = null;
+        $options = [
+            "complete" => function (CompleteEvent $ev) use (&$exceptionThrownInComplete){
+                $exceptionThrownInComplete = new Exception("foo");
+                throw $exceptionThrownInComplete;
+            },
+            "error" => [
+                "fn" => function (ErrorEvent $ev) use (&$exceptionReceivedInError) {
+                    $exceptionReceivedInError = $ev->getException();
+                },
+//                "priority" => -1000000
+            ]
+        ];
+        $pool = new Pool($client,$requests,$options);
+        $pool->wait();
+        $this->assertNotNull($exceptionThrownInComplete,"The complete event did not throw an exception");
+        $this->assertNotNull($exceptionReceivedInError,"The error event did not receive an exception");
+        do{
+            $exceptionReceivedInError = $exceptionReceivedInError->getPrevious();
+            $identical = $exceptionThrownInComplete === $exceptionReceivedInError;
+        }while ($exceptionReceivedInError !== null && !$identical);
+        $this->assertTrue($identical,"The exception thrown in the complete event is not identical with the exception received in the error event");
+        $this->assertEquals(1, $proxy0->getCurrentTotalFails());
+    }
+
+    /**
+     * Test if the RotatingProxySubscriber goes well together with the paslandau\ApplicationCacheSubscriber
+     * This might be problematic because the ApplicationCacheSubscriber intercepts requests in the before event
+     * and prevents that a proxy is set. The RotatingProxySubscriber must not chocke on such a cached request/response
+     */
+    public function test_integration_CachedRequestsShouldNotFail()
+    {
+        $client = new Client();
+
+        $proxy0 = new RotatingProxy("0", null, 5, 10, null);
+        $proxies = [
+            0 => $proxy0,
+        ];
+
+        $success = true;
+        $responses2Proxy = [
+            [$success, $proxy0],
+            [$success, $proxy0],
+            [$success, $proxy0],
+        ];
+        $randKeys = [];
+        $responses = [];
+        foreach ($responses2Proxy as $key => $val) {
+            $randKeys[$key] = array_search($val[1],$proxies);
+            $responses[$key] = ($val[0])?new Response(200):new Response(403);
+        }
+
+        $h = $this->getHelper(null, null, $randKeys);
+        $useOwnIp = false;
+
+        $rotator = new ProxyRotator($proxies, $useOwnIp, $h->getRandomMock());
+        $sub = new RotatingProxySubscriber($rotator);
+
+        $mock = new Mock($responses);
+
+
+        $cacheDriver = new ArrayCache();
+        $cache = new CacheStorage($cacheDriver);
+        $cacheSub = new ApplicationCacheSubscriber($cache);
+
+        // Add the mock subscriber to the client.
+        $client->getEmitter()->attach($cacheSub);
+        $client->getEmitter()->attach($mock);
+        $client->getEmitter()->attach($sub);
+
+        // build requests - we need to do this _after_ the $mock hast been attached to the client,
+        // otherwise a real request is sent.
+        $url = "/"; //make sure its the same
+        $req = $client->createRequest("GET", $url);
+        $req2 = $client->createRequest("GET", $url);
+        $req3 = $client->createRequest("GET", $url);
+        $requests = [$req, $req2, $req3];
+
+        $cached = 0;
+        $options = [
+            "end" => function(EndEvent $ev) use (&$cached){
+                if($ev->getRequest()->getConfig()->get(ApplicationCacheSubscriber::CACHED_RESPONSE_KEY) === true){
+                    $cached++;
+                }
+            }
+        ];
+        $pool = new Pool($client,$requests,$options);
+        $pool->wait();
+        $this->assertEquals(2, $cached, "Expected 2 requests to be cached but got $cached");
+        $this->assertEquals(1, $proxy0->getTotalRequests(), "Expected 1 requests made by the proxy"); // only 1 request will be made with the proxy, the two other ones will be cached
+    }
+
+    /**
+     * Test if every failed request during a retry-session increases the fails of a proxy accordingly.
+     * NOTE: This can only work if the evaluation function of a proxy is called first
+     * ==> retry MUST be called after the complete/error event of the RotatingProxySubscriber was executed!
+     */
+    public function test_integration_RetryingRequestsShouldIncreaseFailesAccordingly()
+    {
+        $client = new Client();
+
+        $proxy0 = new RotatingProxy("0", null, 5, 10, null);
+        $proxies = [
+            0 => $proxy0,
+        ];
+
+        $success = true;
+        $fail = false;
+        $responses2Proxy = [
+            [$fail, $proxy0],
+            [$fail, $proxy0],
+            [$fail, $proxy0],
+            [$success, $proxy0],
+        ];
+        $randKeys = [];
+        $responses = [];
+        foreach ($responses2Proxy as $key => $val) {
+            $randKeys[$key] = array_search($val[1],$proxies);
+            $responses[$key] = ($val[0])?new Response(200):new Response(403);
+        }
+
+        $h = $this->getHelper(null, null, $randKeys);
+        $useOwnIp = false;
+
+        $rotator = new ProxyRotator($proxies, $useOwnIp, $h->getRandomMock());
+        $sub = new RotatingProxySubscriber($rotator);
+
+        $mock = new Mock($responses);
+
+        // Add the mock subscriber to the client.
+        $client->getEmitter()->attach($mock);
+        $client->getEmitter()->attach($sub);
+
+        // build requests - we need to do this _after_ the $mock hast been attached to the client,
+        // otherwise a real request is sent.
+        $req = $client->createRequest("GET");
+        $requests = [$req];
+
+        $options = [
+            "error" => [
+                "fn" => function (ErrorEvent $ev) {
+                    $ev->retry();
+                 },
+                "priority" => RotatingProxySubscriber::PROXY_COMPLETE_EVENT - 5
+            ] // make sure to call retry AFTER the evaluation
+        ];
+        $pool = new Pool($client,$requests,$options);
+        $pool->wait();
+        $this->assertEquals(3, $proxy0->getCurrentTotalFails());
+    }
+
+    /**
+     * Test if a client recognizes if he's blocked even during a retry event
+     */
+    public function test_integration_RetryingRequestsShouldHonorProxyBlocking()
+    {
+        $client = new Client();
+
+        $evaluationFn = function(RotatingProxyInterface $proxy,  AbstractTransferEvent $event){
+            if($event instanceof ErrorEvent){
+                $proxy->block();
+                return false;
+            }
+            return true;
+        };
+
+        $proxy0 = new RotatingProxy("0", $evaluationFn, 5, 10, null);
+        $proxies = [
+            0 => $proxy0,
+        ];
+
+        $success = true;
+        $fail = false;
+        $responses2Proxy = [
+            [$fail, $proxy0],
+            [$success, $proxy0],
+        ];
+        $randKeys = [];
+        $responses = [];
+        foreach ($responses2Proxy as $key => $val) {
+            $randKeys[$key] = array_search($val[1],$proxies);
+            $responses[$key] = ($val[0])?new Response(200):new Response(403);
+        }
+
+        $h = $this->getHelper(null, null, $randKeys);
+        $useOwnIp = false;
+
+        $rotator = new ProxyRotator($proxies, $useOwnIp, $h->getRandomMock());
+        $sub = new RotatingProxySubscriber($rotator);
+
+        $mock = new Mock($responses);
+
+        // Add the mock subscriber to the client.
+        $client->getEmitter()->attach($mock);
+        $client->getEmitter()->attach($sub);
+
+        // build requests - we need to do this _after_ the $mock hast been attached to the client,
+        // otherwise a real request is sent.
+        $req = $client->createRequest("GET");
+        $requests = [$req];
+
+        $exception = null;
+        $options = [
+            "error" => [
+                "fn" => function (ErrorEvent $ev) {
+                    $ev->retry();
+                },
+                "priority" => RotatingProxySubscriber::PROXY_COMPLETE_EVENT - 5
+            ], // make sure to call retry AFTER the evaluation
+            "end" => function (EndEvent $ev) use (&$exception) {
+                $ex = $ev->getException();
+                if ($ex !== null) {
+                    $exception = get_class($ex);
+                }
+            }
+        ];
+        $pool = new Pool($client,$requests,$options);
+        $pool->wait();
+        $expected = NoProxiesLeftException::class;
+        $this->assertEquals($expected, $exception);
+    }
+
+    /**
+     * Test if redirect requests use the same proxy
+     */
+    public function test_integration_RedirectingRequestsShouldUseTheSameProxy()
+    {
+        $client = new Client();
+
+        $proxy0 = new RotatingProxy("0", null, null, null, null);
+        $proxy1 = new RotatingProxy("1", null, null, null, null);
+        $proxies = [
+            0 => $proxy0,
+            1 => $proxy1,
+        ];
+
+        $success = true;
+        $redirect = false;
+        $responses2Proxy = [
+            [$success, $proxy1],
+            [$redirect, $proxy1],
+            [$success, null], // proxy1 will be reused
+            [$success, $proxy0],
+        ];
+        $randKeys = [];
+        $responses = [];
+        foreach ($responses2Proxy as $key => $val) {
+            if($val[1] !== null) {
+                $randKeys[$key] = array_search($val[1], $proxies);
+            }
+            $responses[$key] = ($val[0])?new Response(200):new Response(301,["Location"=>"http://localhost/"]);
+        }
+
+        $h = $this->getHelper(null, null, $randKeys);
+        $useOwnIp = false;
+
+        $rotator = new ProxyRotator($proxies, $useOwnIp, $h->getRandomMock());
+        $rotator->setReuseSameProxyOnRedirect(true);
+
+        $sub = new RotatingProxySubscriber($rotator);
+
+        $mock = new Mock($responses);
+
+        // Add the mock subscriber to the client.
+        $client->getEmitter()->attach($mock);
+        $client->getEmitter()->attach($sub);
+
+        // build requests - we need to do this _after_ the $mock hast been attached to the client,
+        // otherwise a real request is sent.
+        $req1 = $client->createRequest("GET");
+        $req2 = $client->createRequest("GET");
+        $req3 = $client->createRequest("GET");
+        $requests = [$req1,$req2,$req3]; // making only 3 requests but will receive all 4 responses (verified because $proxy0 will have 1 total request)
+
+//        $options = [
+//            "before" => function(BeforeEvent $ev){
+//                echo "Before: Proxy ".$ev->getRequest()->getConfig()->get("proxy")."\n";
+//            },
+//            "complete" => function(CompleteEvent $ev){
+//                echo "Complete: Proxy ".$ev->getRequest()->getConfig()->get("proxy")."\n";
+//            },
+//            "error" => function(ErrorEvent $ev){
+//                echo "Error: Proxy ".$ev->getRequest()->getConfig()->get("proxy")."\n";
+//            },
+//            "end" => function(EndEvent $ev){
+//                echo "End: Proxy ".$ev->getRequest()->getConfig()->get("proxy")."\n";
+//            },
+//        ];
+        $pool = new Pool($client,$requests);
+        $pool->wait();
+        $this->assertEquals(2, $proxy1->getTotalRequests(),"Proxy {$proxy1->getProxyString()} should have 2 total request");
+        $this->assertEquals(0, $proxy1->getCurrentTotalFails(),"Proxy {$proxy1->getProxyString()} should have 0 failed requests");
+        $this->assertEquals(1, $proxy0->getTotalRequests(),"Proxy {$proxy0->getProxyString()} should have 1 total request");
     }
 
     public function test_integration_ShouldHonorWaitingTimes()
@@ -301,6 +654,94 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase {
         ];
         $pool = new Pool($client,$requests,$options);
         $pool->wait();
+    }
+
+    public function test_integration_SwitchIdentities()
+    {
+        /*
+         * Scenario:
+         * 4 requests, 1 proxy with 2 identities
+         * Identies are switched after 2 requests
+         * In the end,
+         * both identies should have made 2 requests
+         * No retries take place
+         */
+        $client = new Client();
+
+        $identity0 = new Identity("0");
+        $identity1 = new Identity("1");
+        $identities = [
+            0 => $identity0,
+            1 => $identity1,
+        ];
+
+        $identityOrder = [
+            0,
+            1
+        ];
+
+        $expectedIdentities = [
+            0,0,1,1
+        ];
+        /** @var  RandomizerInterface|PHPUnit_Framework_MockObject_MockObject $randomizer */
+        $randomizer = $this->getMock(RandomizerInterface::class);
+        $getKeysFn = function($arr) use (&$identityOrder){
+            return array_shift($identityOrder);
+        };
+        $randomizer->expects($this->any())->method("randKey")->willReturnCallback($getKeysFn);
+
+        $counter = new RandomCounterInterval(2,2); // will always return 2;
+        $proxy0 = new RotatingIdentityProxy($identities,"0",$randomizer,$counter);
+        $proxies = [
+            0 => $proxy0,
+        ];
+
+        $success = true;
+        $responses2Proxy = [
+            [$success, $proxy0],
+            [$success, $proxy0],
+            [$success, $proxy0],
+            [$success, $proxy0],
+        ];
+        $randKeys = [];
+        $responses = [];
+        foreach ($responses2Proxy as $key => $val) {
+            $randKeys[$key] = array_search($val[1],$proxies);
+            $responses[$key] = ($val[0])?new Response(200):new Response(403);
+        }
+
+        $h = $this->getHelper(null, null, $randKeys);
+        $useOwnIp = false;
+
+        $rotator = new ProxyRotator($proxies, $useOwnIp, $h->getRandomMock());
+        $sub = new RotatingProxySubscriber($rotator);
+
+        $mock = new Mock($responses);
+
+        // Add the mock subscriber to the client.
+        $client->getEmitter()->attach($mock);
+        $client->getEmitter()->attach($sub);
+
+        // build requests - we need to do this _after_ the $mock hast been attached to the client,
+        // otherwise a real request is sent.
+        $requests = [];
+        foreach ($responses as $key => $val) {
+            $req = $client->createRequest("GET");
+            $req->getConfig()->set("request_id", $key);
+            $requests[$key] = $req;
+        }
+
+        $actualIdentities = [];
+        $options = [
+            "pool_size" => 1,
+            "end" => function (EndEvent $ev) use(&$actualIdentities) {
+                $actual = $ev->getRequest()->getHeader("user-agent");
+                $actualIdentities[] = $actual;
+            },
+        ];
+        $pool = new Pool($client,$requests,$options);
+        $pool->wait();
+        $this->assertEquals($expectedIdentities,$actualIdentities);
     }
 }
  

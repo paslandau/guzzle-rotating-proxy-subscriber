@@ -4,6 +4,7 @@ namespace paslandau\GuzzleRotatingProxySubscriber\Proxy;
 
 
 use GuzzleHttp\Event\AbstractTransferEvent;
+use GuzzleHttp\Message\RequestInterface;
 
 class NullProxy implements RotatingProxyInterface{
     /**
@@ -101,5 +102,13 @@ class NullProxy implements RotatingProxyInterface{
      */
     public function skipWaitingTime(){
         // Do nothing
+    }
+
+    /**
+     * @param RequestInterface $request
+     * @return RequestInterface
+     */
+    public function setupRequest(RequestInterface $request){
+        return $request;
     }
 } 

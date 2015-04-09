@@ -16,11 +16,12 @@ class SystemRandomizer implements RandomizerInterface
     }
 
     /**
-     *  Returns a random key from the give $arr.
-     * @param array &$arr is passed by reference
-     * @return mixed
+     * {@inheritDoc}
      */
     public function randKey(array &$arr){
+        if(count($arr) == 0){
+            return false;
+        }
         return array_rand($arr);
     }
 } 

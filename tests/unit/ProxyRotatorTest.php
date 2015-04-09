@@ -4,14 +4,24 @@ use paslandau\GuzzleRotatingProxySubscriber\Events\WaitingEvent;
 use paslandau\GuzzleRotatingProxySubscriber\Exceptions\NoProxiesLeftException;
 use paslandau\GuzzleRotatingProxySubscriber\Proxy\RotatingProxyInterface;
 use paslandau\GuzzleRotatingProxySubscriber\ProxyRotator;
+use paslandau\GuzzleRotatingProxySubscriber\Random\RandomizerInterface;
+
+include_once __DIR__ . "/../RandomAndTimeHelper.php";
 
 class ProxyRotatorTest extends PHPUnit_Framework_TestCase {
+
+    private function getHelper(array $keys){
+        $randomMock = $this->getMock(RandomizerInterface::class);
+        $h = new RandomAndTimeHelper(null, null, $keys, $randomMock);
+        $randomMock->expects($this->any())->method("randKey")->will($this->returnCallback($h->getGetRandomKeyFn()));
+        return $h;
+    }
 
     /**
      * @param $proxyString
      * @param $isUsable
      * @param int $waitingTime [optional]. Default: 0.
-     * @return \paslandau\GuzzleRotatingProxySubscriber\Proxy\RotatingProxyInterface
+     * @return RotatingProxyInterface|PHPUnit_Framework_MockObject_MockObject
      */
     private function getRotatingProxyMock($proxyString, $isUsable, $waitingTime
         = 0){
@@ -35,20 +45,26 @@ class ProxyRotatorTest extends PHPUnit_Framework_TestCase {
         return $proxyMock;
     }
 
-    public function test_ShouldSetupProxyOnRequestIfProxyIsReady()
+    public function test_ShouldSetupProxyOnRequestOnlyIfProxyIsUsable()
     {
         $failingMock = $this->getRotatingProxyMock("foo",false);
+        $failingMock->expects($this->never())->method("setupRequest")->willReturnArgument(0);
         $proxyMock = $this->getRotatingProxyMock("test",true);
-        $proxies = [$failingMock, $proxyMock];
+        $proxyMock->expects($this->once())->method("setupRequest")->willReturnArgument(0);
+        $proxies = [
+            "foo"=> $failingMock,
+            "test" => $proxyMock
+        ];
         $useOwnIp = false;
-        $rotator = new ProxyRotator($proxies, $useOwnIp);
+        //make sure to pic the failing proxy first
+        $keys = ["foo","test"];
+        $helper = $this->getHelper($keys);
+        $rotator = new ProxyRotator($proxies, $useOwnIp,$helper->getRandomMock());
 
         $client = new Client();
         $request = $client->createRequest("GET", "/");
 
         $isWorkingProxyLeft = $rotator->setupRequest($request);
-        $proxyString = $request->getConfig()->get("proxy");
-        $this->assertEquals($proxyMock->getProxyString(),$proxyString,"Expected proxy wasn't set");
         $this->assertTrue($isWorkingProxyLeft,"setupRequest should have returned true when no NullProxy is used");
     }
 
@@ -129,6 +145,23 @@ class ProxyRotatorTest extends PHPUnit_Framework_TestCase {
         $rotator->setupRequest($request);
 
         $this->assertEquals(null,$eventProxy,"Did not get the correct proxy from the WaitingEvent");
+    }
+
+    public function test_ShouldReuseSameProxyOnRedirect(){
+        $proxyMock = $this->getRotatingProxyMock("test",true);
+        $proxyMock->expects($this->once())->method("setupRequest")->willReturnArgument(0);
+        $proxies = [$proxyMock];
+        $useOwnIp = false;
+        $rotator = new ProxyRotator($proxies, $useOwnIp);
+        $rotator->setReuseSameProxyOnRedirect(true);
+        $client = new Client();
+        $request = $client->createRequest("GET", "/");
+
+        $request->getConfig()->set("redirect_count",1);
+        $rotator->setupRequest($request); // setupRequest will not be called
+
+        $request->getConfig()->remove("redirect_count");
+        $rotator->setupRequest($request); // setupRequest will be called
     }
 }
  

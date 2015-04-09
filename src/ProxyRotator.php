@@ -10,6 +10,7 @@ namespace paslandau\GuzzleRotatingProxySubscriber;
 
 
 use GuzzleHttp\Event\AbstractTransferEvent;
+use GuzzleHttp\Event\EndEvent;
 use GuzzleHttp\Event\ErrorEvent;
 use GuzzleHttp\Event\HasEmitterTrait;
 use GuzzleHttp\Message\RequestInterface;
@@ -56,6 +57,11 @@ class ProxyRotator implements ProxyRotatorInterface
     private $randomizer;
 
     /**
+     * @var bool - If true, the same proxy is used for redirect requests
+     */
+    private $reuseSameProxyOnRedirect;
+
+    /**
      * @param RandomizerInterface $randomizer
      * @param RotatingProxyInterface[] $proxies
      * @param bool $useOwnIp [optional]. Default: false.
@@ -75,6 +81,7 @@ class ProxyRotator implements ProxyRotatorInterface
         }
         $this->useOwnIp = $useOwnIp;
         $this->requestId2ProxyMap = [];
+        $this->reuseSameProxyOnRedirect = true;
     }
 
 
@@ -123,21 +130,51 @@ class ProxyRotator implements ProxyRotatorInterface
     }
 
     /**
+     * @return boolean
+     */
+    public function isReuseSameProxyOnRedirect()
+    {
+        return $this->reuseSameProxyOnRedirect;
+    }
+
+    /**
+     * @param boolean $reuseSameProxyOnRedirect
+     */
+    public function setReuseSameProxyOnRedirect($reuseSameProxyOnRedirect)
+    {
+        $this->reuseSameProxyOnRedirect = $reuseSameProxyOnRedirect;
+    }
+
+    /**
      * @param RequestInterface $request
      * @return bool - returns false if no proxy could be used (no working proxies left but $this->useOwnIp is true), otherwise true.
      */
     public function setupRequest(RequestInterface $request){
+        if($this->reuseSameProxyOnRedirect && $this->isRedirectRequest($request)){ // do not change proxy on redirect
+            return true;
+        }
         $proxy = $this->getWorkingProxy($request);
         $this->requestId2ProxyMap[] = $proxy;
         $keys = array_keys($this->requestId2ProxyMap);
         $requestId = end($keys); // get newly inserted key
         $request->getConfig()->set(self::$REQUEST_CONFIG_KEY, $requestId);
         $proxy->restartWaitingTime();
+        $request = $proxy->setupRequest($request);
         if(!$proxy instanceof NullProxy){
-            $request->getConfig()->set("proxy", $proxy->getProxyString());
             return true;
         }
         return false;
+    }
+
+    /**
+     * Checks wether $request is a redirect by inspecting the "redirect_count" property of the request config
+     * used by to define the number of redirects of a request GuzzleHttp\Subscriber\Redirect
+     * @param RequestInterface $request
+     * @return bool
+     */
+    private function isRedirectRequest(RequestInterface $request){
+        $isRedirect = $request->getConfig()->get("redirect_count");
+        return ($isRedirect !== null && $isRedirect > 0);
     }
 
     /**
@@ -147,23 +184,34 @@ class ProxyRotator implements ProxyRotatorInterface
      */
     public function evaluateResult(AbstractTransferEvent $event){
         $request = $event->getRequest();
-        if($event instanceof ErrorEvent){ // check if all proxies are blocked
+        if($event instanceof ErrorEvent) {
             $exception = $event->getException();
-            do {
-                if ($exception instanceof NoProxiesLeftException) {
-                    throw $exception;
-                }
-                $exception = $exception->getPrevious();
-            } while ($exception !== null);
-
+            if($exception !== null) {
+                do {
+                    if ($exception instanceof NoProxiesLeftException) {
+                        throw $exception;
+                    }
+                    $exception = $exception->getPrevious();
+                } while ($exception !== null);
+            }
         }
         $requestId = $request->getConfig()->get(self::$REQUEST_CONFIG_KEY);
         if($requestId === null){
             return;
-            //TODO: what about caches? A cached response might be served so that no proxy was used. Solution: simply return without exception.
+            // Question: What about caches? A cached response might be served so that no proxy was used.
+            // SOLUTION: simply return without exception.
 //            throw new RotatingProxySubscriberException("Config key '".self::$REQUEST_CONFIG_KEY."' not found in request config - this shouldn't happen...");
         }
         if(!array_key_exists($requestId, $this->requestId2ProxyMap)){
+            // This method really should only be called once, because it determines the result of the proxy request
+            // if it's called multiple times, something is probably wrong. A possible scenario:
+            // Client has a RotatingProxySubscriber and an additional function attached to the complete event that checks wether the
+            // response was logically correct (e.g. contained the right json format) and throws an exception if not.
+            // In that case, this method (evaluateResult) would be called twice: one time in the complete event and the next time
+            // after the exception was thrown (which results in an error event being emitted).
+            // SOLUTION: This can be solved by giving this RotatingProxySubscriber a lower priority so that is called last
+            // Question: Does this introduce problems with ->retry() calls, e.g. is only the last call counted?
+            // Answer: No - see RotatingProxySubscriberTest::test_integration_RetryingRequestsShouldIncreaseFailesAccordingly()
             $msg = "Request with id '{$requestId}' not found - it was probably already processed. Make sure not to pass on multiple events for the same request. This might be influenced by the event priority.";
             throw new RotatingProxySubscriberException($msg,$event->getRequest());
         }

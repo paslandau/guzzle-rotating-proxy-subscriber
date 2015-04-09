@@ -1,6 +1,6 @@
-<?php namespace paslandau\GuzzleRotatingProxySubscriber\Time;
+<?php namespace paslandau\GuzzleRotatingProxySubscriber\Interval;
 
-interface TimeIntervalInterface
+interface TimeIntervalInterface extends RandomIntervalInterface
 {
     /**
      * Checks if sufficient time has passed to satisfy the current time interval.

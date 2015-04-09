@@ -3,11 +3,20 @@
 namespace paslandau\GuzzleRotatingProxySubscriber\Builder;
 
 
+use GuzzleHttp\Cookie\CookieJar;
+use paslandau\GuzzleRotatingProxySubscriber\Interval\RandomCounterInterval;
+use paslandau\GuzzleRotatingProxySubscriber\Proxy\Identity;
+use paslandau\GuzzleRotatingProxySubscriber\Proxy\RotatingIdentityProxy;
 use paslandau\GuzzleRotatingProxySubscriber\Proxy\RotatingProxy;
 use paslandau\GuzzleRotatingProxySubscriber\ProxyRotator;
-use paslandau\GuzzleRotatingProxySubscriber\Time\RandomTimeInterval;
+use paslandau\GuzzleRotatingProxySubscriber\Interval\RandomTimeInterval;
 
 class Build implements ProxyRotatorBuildOrderInterface{
+
+    /**
+     * @var string
+     */
+    private $proxyClass;
 
     /**
      * @var string[]
@@ -49,7 +58,23 @@ class Build implements ProxyRotatorBuildOrderInterface{
      */
     private $to;
 
+    /**
+     * @var Identity[]
+     */
+    private $identities;
+
+    /**
+     * @var int
+     */
+    private $fromRequest;
+
+    /**
+     * @var int
+     */
+    private $toRequest;
+
     private function __construct(){
+        $this->proxyClass = RotatingProxy::class;
     }
 
     /**
@@ -149,14 +174,93 @@ class Build implements ProxyRotatorBuildOrderInterface{
 
     public function build(){
         $proxies = [];
+        $class = $this->proxyClass;
+        if($this->identities !== null && count($this->identities) < count($this->stringProxies)){
+            throw new \InvalidArgumentException("Number of identities ".count($this->identities)." must be greater or equal number of proxies ".count($this->stringProxies));
+        }
+        $identitySlice = floor(count($this->identities)/count($this->stringProxies));
+        $rest = count($this->identities)%count($this->stringProxies);
         foreach($this->stringProxies as $proxyString){
             $time = null;
             if($this->from !== null && $this->to !== null){
                 $time = new RandomTimeInterval($this->from, $this->to);
             }
-            $proxies[$proxyString] = new RotatingProxy($proxyString,$this->evaluationFunction,$this->maxConsecutiveFails,$this->maxTotalFails, $time);
+            if($class == RotatingProxy::class) {
+                $proxies[$proxyString] = new $class($proxyString, $this->evaluationFunction, $this->maxConsecutiveFails, $this->maxTotalFails, $time);
+            }elseif($class == RotatingIdentityProxy::class) {
+                $counter = null;
+                if($this->fromRequest !== null && $this->toRequest !== null){
+                    $counter = new RandomCounterInterval($this->from, $this->to);
+                }
+                $slice = $identitySlice;
+                if($rest > 0){ // if we still got a rest from the division, we can add an additional identity
+                    $rest--;
+                    $slice++;
+                }
+                $identities = array_splice($this->identities,0,$slice);
+                $proxies[$proxyString] = new $class($identities, $proxyString, null, $counter, $this->evaluationFunction, $this->maxConsecutiveFails, $this->maxTotalFails, $time);
+            }
         }
         $rotator = new ProxyRotator($proxies, $this->useOwnIp);
         return $rotator;
     }
+
+    /**
+     * @param Identity[] $identities
+     * @return ProxyRotatorBuildOrderInterface_SwitchIdentities
+     */
+    public function distributeIdentitiesAmongProxies(array $identities)
+    {
+        $this->proxyClass = RotatingIdentityProxy::class;
+        $this->identities = $identities;
+        return $this;
+    }
+
+    /**
+     * @param int $nrOfIdentitiesPerProxy
+     * @param string[] $userAgentSeed
+     * @param string[][] $requestHeaderSeed
+     * @return ProxyRotatorBuildOrderInterface_SwitchIdentities
+     * @internal param \paslandau\GuzzleRotatingProxySubscriber\Proxy\Identity[] $identities
+     */
+    public function generateIdentitiesForProxies($nrOfIdentitiesPerProxy, array $userAgentSeed, array $requestHeaderSeed)
+    {
+        $this->proxyClass = RotatingIdentityProxy::class;
+        $proxies = count($this->stringProxies);
+        $targetIdentityCount = $nrOfIdentitiesPerProxy*$proxies;
+        $identities = [];
+        for($i=0; $i < $targetIdentityCount; $i++){
+            $uaKey = array_rand($userAgentSeed);
+            $ua = $userAgentSeed[$uaKey];
+            $headersKey = array_rand($requestHeaderSeed);
+            $headers = $requestHeaderSeed[$headersKey];
+            $cookieJar = new CookieJar();
+            $identities[] = new Identity($ua,$headers,$cookieJar);
+        }
+        $this->identities = $identities;
+        return $this;
+    }
+
+    /**
+     * @return ProxyRotatorBuildOrderInterface_Build
+     */
+    public function eachProxySwitchesIdentityAfterEachRequest()
+    {
+        $this->fromRequest = null;
+        $this->toRequest = null;
+        return $this;
+    }
+
+    /**
+     * @param int $from
+     * @param int $to
+     * @return ProxyRotatorBuildOrderInterface_Build
+     */
+    public function eachProxySwitchesIdentityAfterRequests($from, $to)
+    {
+        $this->fromRequest = $from;
+        $this->toRequest = $to;
+        return $this;
+    }
+
 }

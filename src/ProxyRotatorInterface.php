@@ -1,6 +1,7 @@
 <?php namespace paslandau\GuzzleRotatingProxySubscriber;
 
 use GuzzleHttp\Event\AbstractTransferEvent;
+use GuzzleHttp\Event\EndEvent;
 use GuzzleHttp\Event\HasEmitterInterface;
 use GuzzleHttp\Message\RequestInterface;
 

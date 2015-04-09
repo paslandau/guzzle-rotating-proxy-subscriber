@@ -1,7 +1,7 @@
 <?php
 use paslandau\GuzzleRotatingProxySubscriber\Random\RandomizerInterface;
-use paslandau\GuzzleRotatingProxySubscriber\Time\RandomTimeInterval;
-use paslandau\GuzzleRotatingProxySubscriber\Time\TimeProviderInterface;
+use paslandau\GuzzleRotatingProxySubscriber\Interval\RandomTimeInterval;
+use paslandau\GuzzleRotatingProxySubscriber\Interval\TimeProviderInterface;
 
 include_once __DIR__ . "/../RandomAndTimeHelper.php";
 

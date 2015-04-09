@@ -1,6 +1,6 @@
 <?php
 
-namespace paslandau\GuzzleRotatingProxySubscriber\Time;
+namespace paslandau\GuzzleRotatingProxySubscriber\Interval;
 
 
 class SystemTimeProvider implements TimeProviderInterface

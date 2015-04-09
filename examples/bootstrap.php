@@ -5,7 +5,7 @@ mb_internal_encoding("utf-8");
 
 //discover autoloader
 $path = "vendor/autoload.php";
-for($i=0; $i<4;$i++){
+for($i=0; $i<5;$i++){
     $depth = "/";
     for($j=0;$j<$i;$j++){
         $depth .= "../";

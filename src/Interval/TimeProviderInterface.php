@@ -1,4 +1,4 @@
-<?php namespace paslandau\GuzzleRotatingProxySubscriber\Time;
+<?php namespace paslandau\GuzzleRotatingProxySubscriber\Interval;
 
 interface TimeProviderInterface
 {

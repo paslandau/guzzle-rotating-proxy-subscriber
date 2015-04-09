@@ -1,6 +1,6 @@
 <?php
 use paslandau\GuzzleRotatingProxySubscriber\Proxy\RotatingProxy;
-use paslandau\GuzzleRotatingProxySubscriber\Time\TimeIntervalInterface;
+use paslandau\GuzzleRotatingProxySubscriber\Interval\TimeIntervalInterface;
 
 class RotatingProxyTest extends PHPUnit_Framework_TestCase
 {
@@ -82,7 +82,7 @@ class RotatingProxyTest extends PHPUnit_Framework_TestCase
         $timeMock2->expects($this->any())->method("isReady")->will($this->returnValue(false));
         $timeMock2->expects($this->any())->method("getWaitingTime")->will($this->returnValue($waitTime));
 
-        /** @var \paslandau\GuzzleRotatingProxySubscriber\Time\TimeIntervalInterface $timeMock2 */
+        /** @var \paslandau\GuzzleRotatingProxySubscriber\Interval\TimeIntervalInterface $timeMock2 */
         $rp = new RotatingProxy("test", null, -1, -1, $timeMock2);
         $this->assertTrue($rp->hasToWait(), "Expected proxy needs to wait");
         $this->assertEquals($waitTime, $rp->getWaitingTime(), "Expected $waitTime seconds to wait");

@@ -5,9 +5,11 @@ namespace paslandau\GuzzleRotatingProxySubscriber\Proxy;
 
 use GuzzleHttp\Event\AbstractTransferEvent;
 use GuzzleHttp\Event\CompleteEvent;
+use GuzzleHttp\Event\EndEvent;
 use GuzzleHttp\Event\ErrorEvent;
-use paslandau\GuzzleRotatingProxySubscriber\Time\NullTimeInterval;
-use paslandau\GuzzleRotatingProxySubscriber\Time\TimeIntervalInterface;
+use GuzzleHttp\Message\RequestInterface;
+use paslandau\GuzzleRotatingProxySubscriber\Interval\NullTimeInterval;
+use paslandau\GuzzleRotatingProxySubscriber\Interval\TimeIntervalInterface;
 
 class RotatingProxy implements RotatingProxyInterface
 {
@@ -58,7 +60,7 @@ class RotatingProxy implements RotatingProxyInterface
 
     /**
      * @param string $proxyString
-     * @param callable $evaluationFunction
+     * @param callable $evaluationFunction. [optional]. Default: null. (Default: true if $event is an instance of CompleteEvent)
      * @param int $maxConsecutiveFails [optional]. Default: 5. (use -1 for infinite fails)
      * @param int $maxTotalFails [optional]. Default: -1. (use -1 for infinite fails)
      * @param TimeIntervalInterface $randomWaitInterval. Default: null.
@@ -68,10 +70,7 @@ class RotatingProxy implements RotatingProxyInterface
         $this->proxyString = $proxyString;
         if($evaluationFunction === null){
             $evaluationFunction = function(RotatingProxyInterface $proxy, AbstractTransferEvent $event){
-                if($event instanceof CompleteEvent){
-                    return true;
-                }
-                return false;
+                return $event instanceof CompleteEvent;
             };
         }
         $this->evaluationFunction = $evaluationFunction;
@@ -335,5 +334,14 @@ class RotatingProxy implements RotatingProxyInterface
     public function setWaitInterval($waitInterval)
     {
         $this->waitInterval = $waitInterval;
+    }
+
+    /**
+     * @param RequestInterface $request
+     * @return RequestInterface
+     */
+    public function setupRequest(RequestInterface $request){
+        $request->getConfig()->set("proxy", $this->getProxyString());
+        return $request;
     }
 }

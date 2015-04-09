@@ -11,7 +11,7 @@ interface RandomizerInterface
     public function randNum($from, $to);
 
     /**
-     * Returns a random key from the give $arr.
+     * Returns a random key from the give $arr or false if the array is empty.
      * @param array $arr
      * @return mixed
      */

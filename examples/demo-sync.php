@@ -1,12 +1,14 @@
 <?php
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Message\Response;
+use GuzzleHttp\Subscriber\Mock;
 use paslandau\GuzzleRotatingProxySubscriber\Exceptions\NoProxiesLeftException;
 use paslandau\GuzzleRotatingProxySubscriber\Proxy\RotatingProxy;
 use paslandau\GuzzleRotatingProxySubscriber\ProxyRotator;
 use paslandau\GuzzleRotatingProxySubscriber\RotatingProxySubscriber;
 
-require_once __DIR__ . '/demo-bootstrap.php';
+require_once __DIR__ . '/bootstrap.php';
 
 $proxy1 = new RotatingProxy("username:password@111.111.111.111:4711");
 $proxy2 = new RotatingProxy("username:password@112.112.112.112:4711");
@@ -17,8 +19,18 @@ $sub = new RotatingProxySubscriber($rotator);
 $client = new Client(["defaults" => ["headers" => ["User-Agent" => null]]]); // remove User-Agent info from request
 $client->getEmitter()->attach($sub);
 
-$num = 10;
-$url = "http://www.myseosolution.de/scripts/myip.php";
+// lets prepare 20 responses
+$num = 20;
+$responses = [];
+for($i = 0; $i < $num; $i++){
+    $responses[] = new Response(200);
+}
+$mock = new Mock($responses);
+$client->getEmitter()->attach($mock);
+
+// lets execute 20 requests
+$requests = [];
+$url = "http://localhost/";
 for ($i = 0; $i < $num; $i++) {
     $request =  $client->createRequest("GET",$url);
     try {
@@ -34,6 +46,7 @@ for ($i = 0; $i < $num; $i++) {
 }
 
 /** @var \paslandau\GuzzleRotatingProxySubscriber\Proxy\RotatingProxy $proxy */
+echo "\nProxy usage:\n";
 foreach($proxies as $proxy){
     echo $proxy->getProxyString()."\t made ".$proxy->getTotalRequests()." requests in total\n";
 }

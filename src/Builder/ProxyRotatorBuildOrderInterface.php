@@ -2,6 +2,7 @@
 
 namespace paslandau\GuzzleRotatingProxySubscriber\Builder;
 
+use paslandau\GuzzleRotatingProxySubscriber\Proxy\Identity;
 use paslandau\GuzzleRotatingProxySubscriber\ProxyRotator;
 use paslandau\GuzzleRotatingProxySubscriber\ProxyRotatorInterface;
 
@@ -83,12 +84,12 @@ interface ProxyRotatorBuildOrderInterface_Wait {
     /**
      * @param int $from
      * @param int $to
-     * @return ProxyRotatorBuildOrderInterface_Build
+     * @return ProxyRotatorBuildOrderInterface_Build|ProxyRotatorBuildOrderInterface_AddIdentities
      */
     public function eachProxyNeedsToWaitSecondsBetweenRequests($from, $to);
 
     /**
-     * @return ProxyRotatorBuildOrderInterface_Build
+     * @return ProxyRotatorBuildOrderInterface_Build|ProxyRotatorBuildOrderInterface_AddIdentities
      */
     public function proxiesDontNeedToWait();
 }
@@ -100,6 +101,37 @@ interface ProxyRotatorBuildOrderInterface_Build {
     public function build();
 }
 
-interface ProxyRotatorBuildOrderInterface extends ProxyRotatorBuildOrderInterface_UseOwnIp, ProxyRotatorBuildOrderInterface_WithProxies, ProxyRotatorBuildOrderInterface_Evaluate, ProxyRotatorBuildOrderInterface_TotalFails, ProxyRotatorBuildOrderInterface_ConsecutiveFails, ProxyRotatorBuildOrderInterface_Build {
+interface ProxyRotatorBuildOrderInterface_AddIdentities {
+    /**
+     * @param Identity[] $identities
+     * @return ProxyRotatorBuildOrderInterface_SwitchIdentities
+     */
+    public function distributeIdentitiesAmongProxies(array $identities);
+
+    /**
+     * @param int $nrOfIdentitiesPerProxy
+     * @param string[] $userAgentSeed
+     * @param string[][] $requestHeaderSeed
+     * @return ProxyRotatorBuildOrderInterface_SwitchIdentities
+     */
+    public function generateIdentitiesForProxies($nrOfIdentitiesPerProxy, array $userAgentSeed, array $requestHeaderSeed);
+}
+
+interface ProxyRotatorBuildOrderInterface_SwitchIdentities {
+    /**
+     * @return ProxyRotatorBuildOrderInterface_Build
+     */
+    public function eachProxySwitchesIdentityAfterEachRequest();
+
+    /**
+     * @param int $from
+     * @param int $to
+     * @return ProxyRotatorBuildOrderInterface_Build
+     */
+    public function eachProxySwitchesIdentityAfterRequests($from, $to);
+}
+
+
+interface ProxyRotatorBuildOrderInterface extends ProxyRotatorBuildOrderInterface_UseOwnIp, ProxyRotatorBuildOrderInterface_WithProxies, ProxyRotatorBuildOrderInterface_Evaluate, ProxyRotatorBuildOrderInterface_TotalFails, ProxyRotatorBuildOrderInterface_ConsecutiveFails, ProxyRotatorBuildOrderInterface_Build, ProxyRotatorBuildOrderInterface_AddIdentities, ProxyRotatorBuildOrderInterface_SwitchIdentities {
 
 } 

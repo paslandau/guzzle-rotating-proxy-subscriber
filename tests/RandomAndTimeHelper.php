@@ -1,7 +1,7 @@
 <?php
 
 use paslandau\GuzzleRotatingProxySubscriber\Random\RandomizerInterface;
-use paslandau\GuzzleRotatingProxySubscriber\Time\TimeProviderInterface;
+use paslandau\GuzzleRotatingProxySubscriber\Interval\TimeProviderInterface;
 
 class RandomAndTimeHelper {
     /**
@@ -113,7 +113,7 @@ class RandomAndTimeHelper {
     }
 
     /**
-     * @return \paslandau\GuzzleRotatingProxySubscriber\Time\TimeProviderInterface
+     * @return \paslandau\GuzzleRotatingProxySubscriber\Interval\TimeProviderInterface
      */
     public function getTimeMock()
     {
