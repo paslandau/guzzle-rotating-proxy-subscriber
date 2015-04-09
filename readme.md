@@ -92,7 +92,7 @@ The _number of requests that failed consecutively_ is reset to zero after each s
 
 You might define a random timeout that the proxy must wait after each request before it can be used again.
 
-If all provided proxies become unsuable, you might either choose to continue without using any proxies (= making direct requests) or to let the process
+If all provided proxies become unsuable, you might either choose to continue without using any proxies (= making direct requests, thus revealing your own IP) or to let the process
 terminate by throwing a `NoProxiesLeftException` instead of making the remaining requests.
 
 ###Mark a proxy as blocked
