@@ -10,6 +10,7 @@
             "role": "Developer"
         }
     ],
+    "repositories": [ { "type": "composer", "url": "http://packages.myseosolution.de/"} ],
 	"autoload": {
 	    "psr-4": {
 	        "paslandau\\GuzzleRotatingProxySubscriber\\": "src/"
