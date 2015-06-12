@@ -5,6 +5,10 @@
 
 #dev-master
 
+##0.2.0
+
+- updated dependencies (Guzzle ^5.3.0; PHPUnit ~4)
+
 ###0.1.2
 
 - proxy requests are now evaluated with their own event priority (see `RotatingProxySubscriber::PROXY_*` constants) in the 'complete' and 'error' events

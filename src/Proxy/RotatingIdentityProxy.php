@@ -130,6 +130,7 @@ class RotatingIdentityProxy extends RotatingProxy
         if ($identitiy->getCookieJar() != null) {
             //todo
             // this seems pretty hacky... is there a better way to replace the cookie container of a request?
+            // > Currently not @see https://github.com/guzzle/guzzle/issues/1028#issuecomment-96253542 - maybe with Guzzle 6
 
             // remove current cookie subscribers
             $emitter = $request->getEmitter();

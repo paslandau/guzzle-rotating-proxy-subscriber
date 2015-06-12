@@ -51,7 +51,7 @@ See `examples/demo*.php` files.
 ##Requirements
 
 - PHP >= 5.5
-- Guzzle >= 5.0.3
+- Guzzle >= 5.3.0
 
 ##Installation
 
@@ -231,7 +231,7 @@ $waitFn = function (WaitingEvent $event){
     $event->skipWaiting();
 };
 
-$rotator->getEmitter()->on(ProxyRotator::EVENT_ON_WAIT, $getWaitingTime);
+$rotator->getEmitter()->on(ProxyRotator::EVENT_ON_WAIT, $waitFn);
 ```
 
 ###Define if the requests should be stopped if all proxies are unusable
