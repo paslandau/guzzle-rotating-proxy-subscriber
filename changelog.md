@@ -5,7 +5,7 @@
 
 #dev-master
 
-##0.3.0
+##0.7.0
 
  - updated dependencies (PHP ~7)
 
