@@ -8,6 +8,7 @@ use GuzzleHttp\Event\ErrorEvent;
 use GuzzleHttp\Message\RequestInterface;
 use GuzzleHttp\Message\Response;
 use GuzzleHttp\Pool;
+use GuzzleHttp\Stream\Stream;
 use GuzzleHttp\Subscriber\Mock;
 use paslandau\GuzzleApplicationCacheSubscriber\ApplicationCacheSubscriber;
 use paslandau\GuzzleApplicationCacheSubscriber\CacheStorage;
@@ -225,7 +226,7 @@ class RotatingProxySubscriberTest extends PHPUnit_Framework_TestCase
         $responses = [];
         foreach ($responses2Proxy as $key => $val) {
             $randKeys[$key] = array_search($val[1], $proxies);
-            $responses[$key] = ($val[0]) ? new Response(200) : new Response(403);
+            $responses[$key] = ($val[0]) ? new Response(200, [], Stream::factory("test")) : new Response(403);
         }
 
         $h = $this->getHelper(null, null, $randKeys);

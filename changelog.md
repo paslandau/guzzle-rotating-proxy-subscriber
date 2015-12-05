@@ -5,6 +5,10 @@
 
 #dev-master
 
+##0.3.0
+
+ - updated dependencies (PHP ~7)
+
 ##0.2.0
 
 - updated dependencies (Guzzle ^5.3.0; PHPUnit ~4)
