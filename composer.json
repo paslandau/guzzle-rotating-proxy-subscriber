@@ -22,6 +22,6 @@
     },
     "require-dev" : {
         "phpunit/phpunit": "~4",
-        "paslandau/guzzle-application-cache-subscriber": "^0.1.2"
+        "paslandau/guzzle-application-cache-subscriber": "^0.2.0"
     }
 }
