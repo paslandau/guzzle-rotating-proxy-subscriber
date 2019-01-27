@@ -1,14 +1,20 @@
-#guzzle-rotating-proxy-subscriber
+# DEPRECATED ⛔ 
+
+This repository has been deprecated as of 2019-01-27. That code was written a long time ago and has been unmaintained for several years. Thus, repository will now be [archived](https://github.blog/2017-11-08-archiving-repositories/).If you are interested in taking over ownership, feel free to [contact me](https://www.pascallandau.com/about/).
+
+---
+
+# guzzle-rotating-proxy-subscriber
 [![Build Status](https://travis-ci.org/paslandau/guzzle-rotating-proxy-subscriber.svg?branch=master)](https://travis-ci.org/paslandau/guzzle-rotating-proxy-subscriber)
 
 Plugin for [Guzzle 5](https://github.com/scripts/guzzle) to automatically choose a random element from a set of proxies on each request.
 
-##Description
+## Description
 
 This plugin takes a set of proxies and uses them randomly on every request, which might come in handy if you need to avoid getting
 IP-blocked due to (too) strict limitations.
 
-###Key features
+### Key features
 
 - switches proxies randomly on each request
 - each proxy can get a random timeout after each request
@@ -17,7 +23,7 @@ IP-blocked due to (too) strict limitations.
 - builder class for easy usage
 - unit tests
 
-###Basic Usage
+### Basic Usage
 ```php
 
 // define proxies
@@ -44,16 +50,16 @@ for ($i = 0; $i < $num; $i++) {
 }
 ```
 
-###Examples
+### Examples
 
 See `examples/demo*.php` files.
 
-##Requirements
+## Requirements
 
 - PHP >= 5.5
 - Guzzle >= 5.3.0
 
-##Installation
+## Installation
 
 The recommended way to install guzzle-rotating-proxy-subscriber is through [Composer](http://getcomposer.org/).
 
@@ -82,7 +88,7 @@ After installing, you need to require Composer's autoloader:
 require 'vendor/autoload.php';
 ```
 
-##General workflow and customization options
+## General workflow and customization options
 The guzzle-rotating-proxy-subscriber uses the `RotatingProxy` class to represent a single proxy. A set of proxies is managed by a `ProxyRotator`, that takes care
 of the rotation on every request by hooking into the [before](http://guzzle.readthedocs.org/en/latest/events.html#before) event and changing the 
 ['proxy' request option](http://guzzle.readthedocs.org/en/latest/clients.html#proxy) of a request. You might choose to further customize the request by 
@@ -109,7 +115,7 @@ maybe just a text message saying something like "Sorry, you're blocked".
 
 In that case, you don't want to use the proxy in question any longer and should call its `block()` method. See next section for an example.
 
-###Use a custom evaluation function for requests
+### Use a custom evaluation function for requests
 
 ```php
 
@@ -195,7 +201,7 @@ $proxy = new RotatingProxy("username:password@111.111.111.111:4711", $evaluation
 $proxy->setEvaluationFunction($evaluation);
 ```
 
-###Set a maximum number of fails (total/consecutive)
+### Set a maximum number of fails (total/consecutive)
 
 ```php
 
@@ -208,7 +214,7 @@ $proxy->setMaxTotalFails($maximumFails);
 $proxy->setMaxConsecutiveFails($consecutiveFails);
 ```
 
-###Set a random timeout for each proxy before reuse
+### Set a random timeout for each proxy before reuse
 
 ```php
 
@@ -241,7 +247,7 @@ $waitFn = function (WaitingEvent $event){
 $rotator->getEmitter()->on(ProxyRotator::EVENT_ON_WAIT, $waitFn);
 ```
 
-###Define if the requests should be stopped if all proxies are unusable
+### Define if the requests should be stopped if all proxies are unusable
 
 ```php
 
@@ -264,7 +270,7 @@ $infoFn = function (UseOwnIpEvent $event){
 $rotator->getEmitter()->on(ProxyRotator::EVENT_ON_USE_OWN_IP,$infoFn);
 ```
 
-###Use the builder class
+### Use the builder class
 The majority of the time it is not necessary to set individual options for every proxy, because you're usually sending requests to the same system
 (maybe even the same URL), so the evaluation function should be the same for every `RotatingProxy`, for instance. In that case, the `Build` class might come 
 in handy, as it guides you through the process by using a fluent interface in combination with a 
@@ -311,7 +317,7 @@ foreach($lines as $line){
 $rotator = new ProxyRotator($proxies,false);
 ```
 
-###Use different "identities" to add customization to the requests
+### Use different "identities" to add customization to the requests
 There are more advanced systems that do not only check the IP address but take also other "patterns" into account when identifying unusual request behaviour 
 (that usually ends in blocking that "pattern"). To prevent being caught by such a system, the `RotatingIdentityProxy` was introduced. Think of it as a
 `RotatingProxy` with some customizations flavour to diversify your request footprint.
@@ -334,7 +340,7 @@ $proxy1 = new RotatingIdentityProxy($identities, "[PROXY 1]");
 
 *Note:* Since `RotatingIdentityProxy` inherits from `RotatingProxy` it has the same capabilities in terms of random waiting times.
 
-####Randomly rotate through multiple identities
+#### Randomly rotate through multiple identities
 The `RotatingIdentityProxy` expects not only one identity but and array of identities. You can further provide a `RandomCounterInterval` the will randomly
 switch the identity after a certain amount of requests. From the outside (= the server receiving the requests) this looks like a genuine network of different
 People sharing the same IP address.
@@ -363,7 +369,7 @@ $counter = new RandomCounterInterval($minRequests,$maxRequests);
 $proxy2 = new RotatingIdentityProxy($identities, "[PROXY 2]",$systemRandomizer,$counter);
 ```
 
-####Use builder with identities
+#### Use builder with identities
 There are two options that can be used via the builder interface:
 
 - `distributeIdentitiesAmongProxies($identities)`
@@ -400,7 +406,7 @@ $rotator = Build::rotator()
     ->build();
 ```
 
-##Frequently searched questions
+## Frequently searched questions
 
 - How can I randomly choose a proxy for each request in Guzzle?
 - How can I avoid getting IP blocked?
